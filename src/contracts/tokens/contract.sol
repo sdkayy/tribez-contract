@@ -13,7 +13,7 @@ contract MetaTribez is NFTokenMetadata, Ownable
 
     bool public buyingActive = false;
     bool public mintingActive = false;
-    bool public isWhiteListActive = true;
+    bool public isWhitelistActive = true;
 
     uint256 public currentIterator = 0;
 
@@ -36,8 +36,10 @@ contract MetaTribez is NFTokenMetadata, Ownable
     {   
         require(tokenID <= currentIterator, "Token hasn't been minted yet.");
 
+        bytes32 nft;
         bytes memory concat;
-        concat = abi.encodePacked(metaAddress, tokenID, jsonAppend);
+        nft = uintToBytes(tokenID);
+        concat = abi.encodePacked(metaAddress, nft, jsonAppend);
         return string(concat);
     }
 
@@ -51,8 +53,9 @@ contract MetaTribez is NFTokenMetadata, Ownable
         require(_mintAmount > 0, 'Must mint 1 or more tokens.');
         require(currentIterator + _mintAmount <= maxMints, 'Not enough NFTs left to succeed.');
         require(_mintAmount <= maxMintsPerTX, 'Cannot mint more than allowed per TX');
+        require(msg.value >= mintPrice * _mintAmount, 'Amount is not correct');
 
-        if(isWhiteListActive) {
+        if(isWhitelistActive) {
             require(whiteList[msg.sender], 'You are not whitelisted');
         }
 
@@ -77,21 +80,14 @@ contract MetaTribez is NFTokenMetadata, Ownable
         feeAddress = _newAddress;
     }
 
-    function addToWhiteList(address[] calldata addresses) external onlyOwner {
-        for (uint256 i = 0; i < addresses.length; i++) {
-            require(addresses[i] != address(0), "Can't add the null address");
-            whiteList[addresses[i]] = true;
-        }
-    }
-
     // Toggle Minting
     function toggleMinting() public onlyOwner {
         mintingActive = !mintingActive;
     }
 
     // Toggle Whitelist
-    function toggleWhiteList() public onlyOwner {
-        isWhiteListActive = !isWhiteListActive;
+    function toggleWhitelist() public onlyOwner {
+        isWhitelistActive = !isWhitelistActive;
     }
 
     function addToWhitelist(address[] calldata addresses) external onlyOwner {
@@ -103,11 +99,29 @@ contract MetaTribez is NFTokenMetadata, Ownable
     }
 
 
-    function removeFromwhiteList(address[] calldata addresses) external onlyOwner {
+    function removeFromWhitelist(address[] calldata addresses) external onlyOwner {
         for (uint256 i = 0; i < addresses.length; i++) {
             require(addresses[i] != address(0), "Can't add the null address");
-
             whiteList[addresses[i]] = false;
         }
+    }
+
+    // Utils
+    function uintToBytes(uint v) private pure returns (bytes32 ret) {
+        if (v == 0) 
+        {
+            ret = '0';
+        }
+        else 
+        {
+            while (v > 0) 
+            {
+                ret = bytes32(uint(ret) / (2 ** 8));
+                ret |= bytes32(((v % 10) + 48) * 2 ** (8 * 31));
+                v /= 10;
+            }
+        }
+
+        return ret;
     }
 }
